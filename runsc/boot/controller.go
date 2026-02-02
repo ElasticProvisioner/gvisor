@@ -66,6 +66,9 @@ const (
 	// ContMgrExecuteAsync executes a command in a container.
 	ContMgrExecuteAsync = "containerManager.ExecuteAsync"
 
+	// ContMgrGetTimeSaved gets CPU and wall time saved for restored sandboxes.
+	ContMgrGetTimeSaved = "containerManager.GetTimeSaved"
+
 	// ContMgrPortForward starts port forwarding with the sandbox.
 	ContMgrPortForward = "containerManager.PortForward"
 
@@ -702,9 +705,10 @@ func (cm *containerManager) onRestoreFailed(err error) {
 	cm.restorer = nil
 }
 
-func (cm *containerManager) onRestoreDone() {
+func (cm *containerManager) onRestoreDone(ts TimeSaved) {
 	cm.l.mu.Lock()
 	cm.l.state = restored
+	cm.l.timeSaved = ts
 	cm.l.mu.Unlock()
 	cm.l.restoreDone.Broadcast()
 	cm.restorer = nil
@@ -1059,5 +1063,22 @@ func (cm *containerManager) Mount(args *MountArgs, _ *struct{}) error {
 func (cm *containerManager) ContainerRuntimeState(cid *string, state *ContainerRuntimeState) error {
 	log.Debugf("containerManager.ContainerRuntimeState: cid: %s", *cid)
 	*state = cm.l.containerRuntimeState(*cid)
+	return nil
+}
+
+// TimeSaved holds the CPU and wall time saved.
+type TimeSaved struct {
+	// CPUTimeSaved is the CPU time saved at restore.
+	CPUTimeSaved int64
+	// WallTimeSaved is the wall time saved at restore.
+	WallTimeSaved int64
+}
+
+// GetTimeSaved returns the CPU and wall time saved for restored sandboxes.
+func (cm *containerManager) GetTimeSaved(_ *struct{}, t *TimeSaved) error {
+	log.Debugf("containerManager.GetTimeSaved")
+	cm.l.mu.Lock()
+	*t = cm.l.timeSaved
+	cm.l.mu.Unlock()
 	return nil
 }

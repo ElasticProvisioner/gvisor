@@ -229,6 +229,12 @@ type Sandbox struct {
 
 	// Restored will be true when the sandbox has been restored.
 	Restored bool `json:"restored"`
+
+	// CPUTimeSaved contains the CPU time saved when the sandbox has been restored.
+	CPUTimeSaved int64 `json:"cpuTimeSaved"`
+
+	// WallTimeSaved contains the wall time saved when the sandbox has been restored.
+	WallTimeSaved int64 `json:"wallTimeSaved"`
 }
 
 // Getpid returns the process ID of the sandbox process.
@@ -1662,6 +1668,20 @@ func (s *Sandbox) GetRegisteredMetrics() (*metricpb.MetricRegistration, error) {
 // ExportMetrics returns a snapshot of metric values from the sandbox in Prometheus format.
 func (s *Sandbox) ExportMetrics(opts control.MetricsExportOpts) (*prometheus.Snapshot, error) {
 	log.Debugf("Metrics export sandbox %q", s.ID)
+
+	// Update time saved metrics before exporting, if not exported already for
+	// restored sandboxes.
+	if s.Restored && s.CPUTimeSaved == 0 && s.WallTimeSaved == 0 {
+		var t boot.TimeSaved
+		err := s.call(boot.ContMgrGetTimeSaved, nil, &t)
+		if err != nil {
+			log.Warningf("Failed to get time saved metrics")
+		} else {
+			s.CPUTimeSaved = t.CPUTimeSaved
+			s.WallTimeSaved = t.WallTimeSaved
+		}
+	}
+
 	var data control.MetricsExportData
 	if err := s.call(boot.MetricsExport, &opts, &data); err != nil {
 		return nil, err

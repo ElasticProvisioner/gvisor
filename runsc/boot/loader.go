@@ -304,6 +304,11 @@ type Loader struct {
 	// +checklocks:mu
 	restoreErr error
 
+	// timeSaved contains the CPU and wall time saved at restore.
+	//
+	// +checklocks:mu
+	timeSaved TimeSaved
+
 	LoaderExtra
 }
 
